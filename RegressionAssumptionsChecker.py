@@ -5,145 +5,71 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
-class RegressionAssumptionsChecker:
-    """
-    A diagnostic tool to check regression assumptions and recommend suitable algorithms.
-    
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        Clean dataframe (no missing values, correctly typed).
-    target : str
-        Name of dependent variable column.
-    algorithm : str, optional
-        Name of algorithm to check assumptions for.
-    """
+from DiagnosticOverlay import DiagnosticOverlay
 
-    def __init__(self, df: pd.DataFrame, target: str, algorithm: str):
+class RegressionAssumptionsChecker:
+    def __init__(self, df, target, algorithm=None, visualize=False):
         self.df = df
         self.target = target
         self.algorithm = algorithm
+        self.overlay = DiagnosticOverlay(df, target, visualize)
         self.report = {}
 
-    # ==================================================
-    # 1. Core assumption checks
-    # ==================================================
+    # =======================================
+    # Orchestrator
+    # =======================================
     def check_assumptions(self):
-        """
-        Run algorithm-specific assumption checks.
-        Returns a structured dictionary with results.
-        """
+        """Run relevant checks depending on algorithm."""
         results = {}
 
-        if self.algorithm is None:
-            results["status"] = "no_algorithm_specified"
-            results["notes"] = "Use suggest_algorithms() to see permissible models."
-            return results
+        if self.algorithm in ["LinearRegression", "Ridge", "Lasso", "ElasticNet"]:
+            results["linearity"] = self.overlay.check_linearity()
+            results["multicollinearity"] = self.overlay.check_multicollinearity()
+            results["heteroscedasticity"] = self.overlay.check_heteroscedasticity()
 
-        if self.algorithm == "LinearRegression":
-            # Example placeholder checks:
-            # (real implementation: VIF for multicollinearity,
-            #  Breusch-Pagan for heteroscedasticity, etc.)
-            results["linearity"] = True
-            results["multicollinearity"] = False
-            results["homoscedasticity"] = False
-
-            if not results["homoscedasticity"]:
+            # Evaluate hard constraints
+            if not results["heteroscedasticity"]["homoscedasticity"]:
                 results["status"] = "unsuitable"
                 results["reason"] = (
-                    "LinearRegression is not suitable because residuals are heteroscedastic. "
-                    "Consider GradientBoostingRegressor, RandomForestRegressor, or HuberRegressor."
+                    f"{self.algorithm} is not suitable because residuals are heteroscedastic. "
+                    "Consider robust alternatives such as HuberRegressor or RANSACRegressor."
                 )
             else:
                 results["status"] = "suitable"
 
-        elif self.algorithm in ["Ridge", "Lasso", "ElasticNet"]:
-            results["status"] = "suitable"
-            results["notes"] = "Handles multicollinearity better than OLS. Scaling required."
-
         elif self.algorithm in ["SVR", "KNeighborsRegressor"]:
             results["status"] = "conditionally_permissible"
-            results["notes"] = "Sensitive to feature scale. Scaling required."
+            results["reason"] = "Scaling required."
 
-        elif self.algorithm in [
-            "DecisionTreeRegressor",
-            "RandomForestRegressor",
-            "GradientBoostingRegressor"
-        ]:
-            results["status"] = "suitable"
-            results["notes"] = "Tree-based models are robust to collinearity and heteroscedasticity."
+        elif self.algorithm in ["DecisionTreeRegressor", "RandomForestRegressor", "GradientBoostingRegressor"]:
+            tree_check = self.overlay.check_tree_suitability()
+            results["tree_suitability"] = tree_check
+
+            if not tree_check["tree_suitability"]:
+                results["status"] = "conditionally_unsuitable"
+                results["reason"] = tree_check["notes"]
+            else:
+                results["status"] = "suitable"
+                results["reason"] = "Tree-based models do not assume linearity or homoscedasticity."
 
         else:
             results["status"] = "unknown"
-            results["notes"] = f"Algorithm {self.algorithm} not recognized."
+            results["reason"] = f"Algorithm {self.algorithm} not recognized."
+            self.help_algorithms()
 
         self.report["assumptions"] = results
         return results
 
-    # ==================================================
-    # 2. Scaling advisor
-    # ==================================================
-    def scaling_recommendations(self):
-        """
-        Advise on scaling requirements for the chosen algorithm.
-        """
-        advice = {}
-        alg = self.algorithm
 
-        if alg in ["KNeighborsRegressor", "SVR"]:
-            advice["required"] = True
-            advice["recommended_scalers"] = ["StandardScaler", "MinMaxScaler"]
-            advice["notes"] = "Apply scaling after train-test split."
+    def help_algorithms(self):
+        print('RegressionAssumptionsChecker')
+        print('Checks data assumptions (linearity, multicolinearity, heteroscedasticity) for the algorithms:')
+        print('LinearRegression, Ridge, Lasso, ElasticNet')
+        print('SVR, KNeighborsRegressor')
+        print('DecisionTreeRegressor, RandomForestRegressor, GradientBoostingRegressor')
 
-        elif alg in ["Ridge", "Lasso", "ElasticNet"]:
-            advice["required"] = True
-            advice["recommended_scalers"] = ["StandardScaler", "RobustScaler"]
-            advice["notes"] = "Scaling avoids penalization bias from feature magnitudes."
-
-        elif alg in ["LinearRegression"]:
-            advice["required"] = False
-            advice["notes"] = "Scaling not required, though it may help coefficient interpretability."
-
-        elif alg in [
-            "DecisionTreeRegressor",
-            "RandomForestRegressor",
-            "GradientBoostingRegressor"
-        ]:
-            advice["required"] = False
-            advice["notes"] = "Scaling irrelevant; tree splits are scale-invariant."
-
-        else:
-            advice["required"] = None
-            advice["notes"] = "Algorithm not recognized for scaling guidance."
-
-        self.report["scaling"] = advice
-        return advice
-
-    # ==================================================
-    # 3. Suggest permissible algorithms
-    # ==================================================
-    def suggest_algorithms(self):
-        """
-        Evaluate all supported algorithms and return a dict of permissible ones.
-        """
-        algorithms = [
-            "LinearRegression", "Ridge", "Lasso", "ElasticNet",
-            "SVR", "KNeighborsRegressor",
-            "DecisionTreeRegressor", "RandomForestRegressor", "GradientBoostingRegressor"
-        ]
-
-        suggestions = {}
-        for alg in algorithms:
-            self.algorithm = alg
-            assumptions = self.check_assumptions()
-            scaling = self.scaling_recommendations()
-
-            if assumptions["status"] not in ["unsuitable", "unknown"]:
-                suggestions[alg] = {
-                    "status": assumptions["status"],
-                    "notes": assumptions.get("notes", ""),
-                    "scaling": scaling
-                }
-
-        self.report["suggestions"] = suggestions
-        return suggestions
+    def export_report(self, format="dict"):
+        if format == "json":
+            import json
+            return json.dumps(self.report, indent=2)
+        return self.report
