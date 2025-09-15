@@ -20,45 +20,45 @@ class RegressionAssumptionsChecker:
     # =======================================
     def check_assumptions(self):
         """Run relevant checks depending on algorithm."""
-        results = {}
+        self.results = {}
 
         if self.algorithm in ["LinearRegression", "Ridge", "Lasso", "ElasticNet"]:
-            results["linearity"] = self.overlay.check_linearity()
-            results["multicollinearity"] = self.overlay.check_multicollinearity()
-            results["heteroscedasticity"] = self.overlay.check_heteroscedasticity()
+            self.results["linearity"] = self.overlay.check_linearity()
+            self.results["multicollinearity"] = self.overlay.check_multicollinearity()
+            self.results["heteroscedasticity"] = self.overlay.check_heteroscedasticity()
 
             # Evaluate hard constraints
-            if not results["heteroscedasticity"]["homoscedasticity"]:
-                results["status"] = "unsuitable"
-                results["reason"] = (
+            if not self.results["heteroscedasticity"]["homoscedasticity"]:
+                self.results["status"] = "unsuitable"
+                self.results["reason"] = (
                     f"{self.algorithm} is not suitable because residuals are heteroscedastic. "
                     "Consider robust alternatives such as HuberRegressor or RANSACRegressor."
                 )
             else:
-                results["status"] = "suitable"
+                self.results["status"] = "suitable"
 
         elif self.algorithm in ["SVR", "KNeighborsRegressor"]:
-            results["status"] = "conditionally_permissible"
-            results["reason"] = "Scaling required."
+            self.results["status"] = "conditionally_permissible"
+            self.results["reason"] = "Scaling required."
 
         elif self.algorithm in ["DecisionTreeRegressor", "RandomForestRegressor", "GradientBoostingRegressor"]:
             tree_check = self.overlay.check_tree_suitability()
-            results["tree_suitability"] = tree_check
+            self.results["tree_suitability"] = tree_check
 
             if not tree_check["tree_suitability"]:
-                results["status"] = "conditionally_unsuitable"
-                results["reason"] = tree_check["notes"]
+                self.results["status"] = "conditionally_unsuitable"
+                self.results["reason"] = tree_check["notes"]
             else:
-                results["status"] = "suitable"
-                results["reason"] = "Tree-based models do not assume linearity or homoscedasticity."
+                self.results["status"] = "suitable"
+                self.results["reason"] = "Tree-based models do not assume linearity or homoscedasticity."
 
         else:
-            results["status"] = "unknown"
-            results["reason"] = f"Algorithm {self.algorithm} not recognized."
+            self.results["status"] = "unknown"
+            self.results["reason"] = f"Algorithm {self.algorithm} not recognized."
             self.help_algorithms()
 
-        self.report["assumptions"] = results
-        return results
+        self.report["assumptions"] = self.results
+        return self.results
 
 
     def help_algorithms(self):
@@ -73,3 +73,25 @@ class RegressionAssumptionsChecker:
             import json
             return json.dumps(self.report, indent=2)
         return self.report
+    
+    def report_assumptions(self):
+        print("\n🔍 Assumption Diagnostics Report")
+        print("=" * 40)
+
+        assumptions = self.report.get("assumptions", self.results)
+
+        for key, result in assumptions.items():
+            print(f"\n🧠 {key.replace('_', ' ').title()}")
+            print("-" * 30)
+
+            if isinstance(result, dict):
+                for subkey, value in result.items():
+                    print(f"{subkey}: {value}")
+            else:
+                print(result)
+
+        if "recommendations" in self.report:
+            print("\n⚠️ Model Recommendations")
+            print("-" * 30)
+            for rec in self.report["recommendations"]:
+                print(f"- {rec}")
