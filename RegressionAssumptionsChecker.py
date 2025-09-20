@@ -5,14 +5,14 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
-from DiagnosticOverlay import DiagnosticOverlay
+from RegressionOverlay import RegressionOverlay
 
 class RegressionAssumptionsChecker:
     def __init__(self, df, target, algorithm=None, visualize=False):
         self.df = df
         self.target = target
         self.algorithm = algorithm
-        self.overlay = DiagnosticOverlay(df, target, visualize)
+        self.overlay = RegressionOverlay(df, target, visualize)
         self.report = {}
 
     # =======================================

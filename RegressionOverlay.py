@@ -19,7 +19,7 @@ from scipy.spatial.distance import pdist
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-class DiagnosticOverlay:
+class RegressionOverlay:
     def __init__(self, df, target, visualize=False):
         self.df = df
         self.target = target

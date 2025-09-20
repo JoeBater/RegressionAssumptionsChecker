@@ -6,14 +6,14 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 
-from DiagnosticOverlay import DiagnosticOverlay
+from RegressionOverlay import RegressionOverlay
 
 class ClassificationAssumptionsChecker:
     def __init__(self, df, target, algorithm=None, visualize=False):
         self.df = df
         self.target = target
         self.algorithm = algorithm
-        self.overlay = DiagnosticOverlay(df, target, visualize)
+        self.overlay = RegressionOverlay(df, target, visualize)
         self.report = {}
         
 
