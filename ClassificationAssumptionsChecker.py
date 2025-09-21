@@ -6,14 +6,16 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 
 
-from RegressionOverlay import RegressionOverlay
+from SharedOverlay import SharedOverlay
+from ClassificationOverlay import ClassificationOverlay
 
 class ClassificationAssumptionsChecker:
     def __init__(self, df, target, algorithm=None, visualize=False):
         self.df = df
         self.target = target
         self.algorithm = algorithm
-        self.overlay = RegressionOverlay(df, target, visualize)
+        self.overlay = SharedOverlay(df, target, visualize)
+        self.classification_overlay = ClassificationOverlay(df, target, visualize)
         self.report = {}
         
 
@@ -22,8 +24,8 @@ class ClassificationAssumptionsChecker:
             "multicollinearity": self.overlay.check_multicollinearity(),
             "class_imbalance": self.overlay.check_class_imbalance(),
             "scaling_issues": self.overlay.check_scaling(),
-            "separability": self.overlay.check_separability(),
             "redundancy": self.overlay.check_redundancy(),
+            "separability": self.classification_overlay.check_separability(),
         }
         self.recommend_models()
         return self.assumption_results

@@ -5,6 +5,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
+from SharedOverlay import SharedOverlay
 from RegressionOverlay import RegressionOverlay
 
 class RegressionAssumptionsChecker:
@@ -12,7 +13,8 @@ class RegressionAssumptionsChecker:
         self.df = df
         self.target = target
         self.algorithm = algorithm
-        self.overlay = RegressionOverlay(df, target, visualize)
+        self.overlay = SharedOverlay(df, target, visualize)
+        self.regression_overlay = RegressionOverlay(df, target, visualize)
         self.report = {}
 
     # =======================================
@@ -23,9 +25,9 @@ class RegressionAssumptionsChecker:
         self.results = {}
 
         if self.algorithm in ["LinearRegression", "Ridge", "Lasso", "ElasticNet"]:
-            self.results["linearity"] = self.overlay.check_linearity()
+            self.results["linearity"] = self.regression_overlay.check_linearity()
             self.results["multicollinearity"] = self.overlay.check_multicollinearity()
-            self.results["heteroscedasticity"] = self.overlay.check_heteroscedasticity()
+            self.results["heteroscedasticity"] = self.regression_overlay.check_heteroscedasticity()
 
             # Evaluate hard constraints
             if not self.results["heteroscedasticity"]["homoscedasticity"]:

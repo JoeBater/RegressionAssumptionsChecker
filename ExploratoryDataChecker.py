@@ -181,12 +181,22 @@ class ExploratoryDataChecker:
             "notes": f"{len(high_card)} columns exceed cardinality threshold."
         }
 
+    def check_overlong_inputs(self):
+        overlong = pd.DataFrame()
+        for column in self.df.columns:
+            median_length = np.median(len(self.df[column]))
+            overlong = pd.concat([overlong, self.df.filter(len(self.df[column]) > median_length)])
+        return {
+            "rows with overlong elements": overlong
+        }
+
     def run_all_checks(self):
         self.report["missing_values"] = self.check_missing_values()
         self.report["outliers"] = self.check_outliers()
         self.report["whitespace"] = self.check_whitespace_strings()
         self.report["constant_columns"] = self.check_constant_columns()
         self.report["high_cardinality"] = self.check_high_cardinality()
+        #self.report["overlong"] = self.check_overlong_inputs()
         
         self.present_exploration()
 

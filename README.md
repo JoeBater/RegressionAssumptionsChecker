@@ -4,7 +4,10 @@ Modular diagnostics for real-world ML workflows Built for deployment-aware pipel
 
 🔍 Overview
 
-The AssumptionsChecker suite provides two modular tools — RegressionAssumptionsChecker and ClassificationAssumptionsChecker — designed to surface hidden risks in machine learning models before they reach production. Whether you're validating a regression model’s residuals or stress-testing a classifier’s decision boundaries, these tools help you clarify, not just compute.
+The AssumptionsChecker suite provides three modular tools — RegressionAssumptionsChecker and ClassificationAssumptionsChecker & DataIntegrityChecker — designed to surface hidden risks 
+in machine learning models before they reach production. 
+
+Whether you're validating a regression model’s residuals or stress-testing a classifier’s decision boundaries, these tools help you clarify, not just compute.
 
 ⚙️ Features
 
