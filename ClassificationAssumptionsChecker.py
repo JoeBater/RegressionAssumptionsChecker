@@ -24,7 +24,7 @@ class ClassificationAssumptionsChecker:
             "multicollinearity": self.overlay.check_multicollinearity(),
             "class_imbalance": self.overlay.check_class_imbalance(),
             "scaling_issues": self.overlay.check_scaling(),
-            "redundancy": self.overlay.check_redundancy(),
+            "redundancy": self.classification_overlay.check_redundancy(),
             "separability": self.classification_overlay.check_separability(),
         }
         self.recommend_models()

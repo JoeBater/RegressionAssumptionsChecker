@@ -41,11 +41,47 @@ class SharedOverlay:
             "notes": "Scaling recommended." if ratio > threshold else "Feature scales are aligned."
         }
 
+    
+
     def check_multicollinearity(self, threshold=10):
         """Check multicollinearity using VIF, only if 2+ predictors.
         Returns diagnostics and minimal drop set recommendation.
         """
         X = self.df.drop(columns=[self.target])
+
+        if X.isna().any().any():
+            return {
+                "multicollinearity": True,
+                "details": None,
+                "notes": "Missing data — multicollinearity check skipped.",
+                "recommendation": "Missing values detected, downstream classifiers like XGBoost or CatBoost may tolerate missingness natively. Consider whether imputation is necessary based on your modeling choice."
+            }
+        
+        non_numeric = [col for col in X.columns if not np.issubdtype(X[col].dtype, np.number)]
+        if non_numeric:
+            return {
+                "multicollinearity": True,
+                "details": None,
+                "notes": f"Non-numeric columns present — multicollinearity check skipped: {non_numeric}",
+                "recommendation": "Recast or exclude non-numeric columns before running VIF."
+            }
+        
+
+      
+        # Checks for infinite values in the dataset.  Returns a summary of affected columns and counts.
+        inf_mask = np.isinf(self.df.select_dtypes(include=[np.number]))
+        inf_counts = inf_mask.sum()
+
+        flagged = inf_counts[inf_counts > 0]
+        if not flagged.empty:
+            return {
+                "has_infinite": True,
+                "columns": flagged.index.tolist(),
+                "total": int(flagged.sum()),
+                "notes": f"Infinite values detected in {len(flagged)} column(s).",
+                "recommendation": "Replace or remove infinite values before running numeric diagnostics."
+            }
+
 
         if X.shape[1] < 2:
             return {
@@ -183,8 +219,25 @@ class SharedOverlay:
         Returns:
         - dict with scaling flag, feature ranges, stds, and max ratio
         """
-        X = np.array(self.X)
+        X_df = self.X.select_dtypes(include=[np.number])
+        X = X_df.values
 
+        if np.isnan(X).any():
+            return {
+                "is_scaled": True,
+                "details": None,
+                "notes": "Missing values detected — scaling check skipped.",
+                "recommendation": "Impute or remove missing values before checking scaling."
+            }
+
+        if np.isinf(X).any():
+            return {
+                "is_scaled": True,
+                "details": None,
+                "notes": "Infinite values detected — scaling check skipped.",
+                "recommendation": "Replace or remove infinite values before checking scaling."
+            }
+        
         # Compute range and std per feature
         feature_ranges = np.ptp(X, axis=0)  # peak-to-peak (max - min)
         feature_stds = np.std(X, axis=0)
@@ -229,54 +282,3 @@ class SharedOverlay:
 
 
 
-    def check_redundancy(self, threshold=0.95, task="classification"):
-        """
-        Checks for redundant features via correlation and mutual information clustering.
-
-        Parameters:
-        - threshold: float, correlation above which features are flagged as redundant
-        - task: "classification" or "regression"
-
-        Returns:
-        - dict with flagged pairs, mutual info scores, and notes
-        """
-        X = self.X.copy()
-
-        # Encode categorical features if needed
-        for col in X.select_dtypes(include=["object", "category"]).columns:
-            X[col] = LabelEncoder().fit_transform(X[col])
-
-        # Correlation matrix
-        corr_matrix = X.corr().abs()
-        redundant_pairs = [
-            (i, j, corr_matrix.loc[i, j])
-            for i in corr_matrix.columns
-            for j in corr_matrix.columns
-            if i != j and corr_matrix.loc[i, j] > threshold
-        ]
-
-        # Mutual information
-        y = self.y
-        if task == "classification":
-            mi = mutual_info_classif(X, y, discrete_features="auto")
-        else:
-            mi = mutual_info_regression(X, y)
-
-        mi_scores = dict(zip(X.columns, np.round(mi, 3)))
-
-        if self.visualize:
-            import seaborn as sns
-            plt.figure(figsize=(8, 6))
-            sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
-            plt.title("Feature Correlation Matrix")
-            plt.tight_layout()
-            plt.show()
-
-        return {
-            "redundant_pairs": redundant_pairs,
-            "mutual_info_scores": mi_scores,
-            "notes": (
-                f"{len(redundant_pairs)} highly correlated feature pairs detected."
-                if redundant_pairs else "No severe feature redundancy detected."
-            )
-        }
